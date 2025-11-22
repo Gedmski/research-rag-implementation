@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+*.ipynb_checkpoints
+
+# Virtualenv
+venv/
+env/
+
+# Example notebook model files
+faiss_bge_small_hnsw.index
+kb_embeddings.npy

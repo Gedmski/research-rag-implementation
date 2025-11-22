@@ -1,0 +1,12 @@
+# CPU-first requirements. If you have CUDA installed and want GPU acceleration,
+# see `requirements-gpu.txt` and the README for specific install commands.
+sentence-transformers>=2.2.2
+faiss-cpu>=1.7.4
+torch>=2.0.0
+transformers>=4.40.0
+accelerate>=0.21.0
+einops>=0.6.0
+tqdm>=4.65.0
+scikit-learn>=1.2.0
+pytest>=8.0.0
+

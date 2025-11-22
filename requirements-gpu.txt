@@ -1,0 +1,18 @@
+# GPU-specific requirements. This file includes dependencies that assume you
+# will install a CUDA-enabled PyTorch build and (optionally) `faiss-gpu`.
+# NOTE: Install PyTorch with appropriate CUDA version using the official
+# install command from https://pytorch.org. On Windows, prefer conda for
+# installing GPU-enabled FAISS (`conda install -c pytorch faiss-gpu cudatoolkit=11.8`).
+# Example pip install (pick the CUDA index that matches your system):
+# pip install --upgrade pip
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+sentence-transformers>=2.2.2
+transformers>=4.40.0
+accelerate>=0.21.0
+einops>=0.6.0
+tqdm>=4.65.0
+bitsandbytes>=0.39.0  # for 8-bit weights (optional; GPU-only)
+faiss-gpu>=1.7.4  # if using GPU-backed FAISS (commonly via conda)
+scikit-learn>=1.2.0
+pytest>=8.0.0
