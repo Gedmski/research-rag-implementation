@@ -1,6 +1,15 @@
 # Fully-Free RAG Pipeline — Local Notebook + Script
 
-This repository contains a ready-to-run RAG (Retrieval-Augmented Generation) pipeline blueprint and a small demo runner. It follows the `CONTEXT.MD` blueprint and provides a Jupyter notebook structure, helper modules, a CLI runner script, and tests. Everything is designed to be runnable locally and free — no OpenAI or paid APIs.
+This repository contains a ready-to-run Retrieval-Augmented Generation (RAG) pipeline blueprint and a small demo runner. It includes a Jupyter notebook, helper modules, a CLI runner script, and tests. Everything is designed to be runnable locally and free — no OpenAI or paid APIs.
+
+Overview
+- A small, local-first RAG pipeline that demonstrates:
+  - KB ingestion and chunking (text chunking utilities).
+  - Dense embeddings via SentenceTransformers (BGE-small-en recommended when available).
+  - FAISS-based ANN indexing (HNSW).
+  - A small Retriever interface that returns top-k hits.
+  - Optional local LLM generation (if resources and VRAM permit).
+- The pipeline falls back to a TF-IDF-style retrieval if a real embedding stack (sentence-transformers and FAISS) is not available.
 
 Quick start
 1. (Optional) Create and activate a Python virtual environment.
@@ -8,7 +17,7 @@ Quick start
 ```bash
 python -m pip install -r requirements.txt
 ```
-3. Open the Jupyter notebook `free_rag_pipeline.ipynb` and run cells top-to-bottom.
+3. Open `free_rag_pipeline.ipynb` and run cells top-to-bottom.
 
 Or run the demo CLI (toy demo that does not require GPU or large models):
 ```bash
@@ -17,80 +26,72 @@ python run_rag.py
 
 CLI usage notes
 - Use `--force-device cpu` or `--force-device cuda` to force device selection.
-	- `--force-device cuda` will try to run on GPU but will fall back to CPU if your venv lacks CUDA-enabled PyTorch.
-- Use `--with-llm` to attempt to load a small local LLM for generation; omit if you have limited VRAM.
+  - `--force-device cuda` will try to run on GPU but will fall back to CPU if your venv lacks CUDA-enabled PyTorch.
+- Use `--with-llm` to attempt to load a local LLM for generation; omit if you have limited VRAM.
 
 Files included
 - `free_rag_pipeline.ipynb`: Notebook blueprint with cell-by-cell content.
 - `run_rag.py`: Minimal CLI to run a toy demo using small or mocked embeddings.
 - `rag/`: Python package with helper functions used by the notebook/CLI.
-- `tests/`: Unit tests for the chunking and retrieval utilities.
+  - `rag/utils.py`: chunking helpers (simple_chunk_text, iter_simple_chunk_text).
+  - `rag/retriever.py`: retriever implementation (FAISS/embedding fallback to TF-IDF).
+  - `rag/device.py`: device diagnostics and helper to choose CUDA vs CPU.
+- `tests/`: Unit tests for chunking and retrieval utilities.
 - `requirements.txt`: Required packages.
 
-Notes
-- If you run the notebook and want to use real models, make sure you have GPU drivers and enough VRAM or choose smaller models / quantization.
-- The CLI fallback will use numpy-based embeddings if `sentence-transformers`, `faiss`, or model downloads are not available.
+Implementation notes
+- Embedding model: the notebook shows an example using `BAAI/bge-small-en` via SentenceTransformers for compact English embeddings; change to your preferred model if needed.
+- FAISS index: the example uses an HNSW inner-product index with the following parameters:
+  - Index: `IndexHNSWFlat(dim, 32, faiss.METRIC_INNER_PRODUCT)`
+  - Construction/search tuning: `efConstruction=200`, `efSearch=64`
+- Retriever: `rag.retriever.Retriever` builds an index from KB documents and executes top-k retrieval. If `sentence-transformers` or `faiss` are unavailable, the retriever will fall back to a basic numpy/TF-IDF retrieval mode.
+- Chunking: use `rag.utils.simple_chunk_text` to chunk text into smaller passages; `iter_simple_chunk_text` yields streaming chunks for large datasets.
 
-Using a GPU (CUDA) — quick guide
-1. Verify your NVIDIA drivers are current and compatible with a CUDA toolkit. RTX 4xxx cards usually need recent drivers.
-2. Install a CUDA-enabled PyTorch build. For example (on Windows, choose the right CUDA version for your system):
-```cmd
-pip install --upgrade pip
-pip install torch --index-url https://download.pytorch.org/whl/cu118  # or cu121 etc. Pick matching CUDA
-```
-3. Optionally install FAISS GPU build if you want GPU-backed FAISS accelerated searches
-	(this is easiest via conda; pip may not provide a GPU wheel on all platforms):
-```cmd
-conda install -c pytorch faiss-gpu cudatoolkit=11.8
-```
-4. If using LLMs, consider `bitsandbytes` for 8-bit loading and `accelerate` for device_map automation:
-```cmd
-pip install bitsandbytes accelerate
-```
-5. Re-open `free_rag_pipeline.ipynb` and re-run cells — the notebook will print device diagnostics and will use GPU for embedding operations if available.
+Example run and results
+Below is a typical notebook/CLI run with toy documents (works on CPU or CUDA if available). These example outputs were produced in a sample run of the notebook:
 
-If you have CUDA installed and want to use a GPU-optimized environment, you can use the GPU requirement file:
-```cmd
-pip install -r requirements-gpu.txt
+1) Device diagnostics (example on a machine with CUDA):
 ```
-Note: For `torch` with CUDA, prefer following the official install commands for your CUDA version.
-Check your GPU is visible
-1. Run `nvidia-smi` in a shell. If this prints device information, your Nvidia drivers are installed and the GPU is available.
-2. Confirm PyTorch with CUDA is installed by starting Python and running:
+Using device: cuda
+{'torch_version': '2.7.1+cu118', 'cuda_version': '11.8', 'cuda_available': True, 'device_name': 'NVIDIA GeForce RTX 4060', 'total_memory': 8585216000, 'major': 8, 'minor': 9}
+```
+
+2) KB preparation and chunking:
+```
+Loaded 3 raw docs. Chunked to 6 docs.
+```
+
+3) Embedding/FAISS index creation:
+```
+FAISS index created, size: 6
+```
+
+4) Example retrieval for query "What is RAG?":
+```
+0 0.859682559967041 doc_001_chunk_0 -> Retrieval-Augmented Generation (RAG) combines a retriever with a generator to an...
+1 0.8120253086090088 doc_002_chunk_1 -> The BGE-small-en model is a compact, general-purpose English embedding model useful for...
+2 0.7771009206771851 doc_003_chunk_1 -> FAISS is a library for efficient similarity search and clustering of dense vectors...
+```
+
+Notes & recommendations
+- For production workloads with large KBs:
+  - Prefer streaming chunking (iter_simple_chunk_text) to avoid large memory usage.
+  - Persist embeddings and FAISS indexes to disk and use sharding or a remote vector DB if needed.
+- For LLM generation:
+  - If using HF Transformers, `device_map="auto"` with `accelerate` installed helps place the model on GPU.
+  - Consider quantization (bitsandbytes) and/or smaller models to reduce VRAM usage.
+- If FAISS GPU is not installed, you can still index with `faiss-cpu` or use the TF-IDF fallback.
+
+Troubleshooting
+- Confirm GPU visibility with:
+```cmd
+nvidia-smi
+```
+- Confirm CUDA-enabled PyTorch is installed:
 ```py
 import torch
 print(torch.cuda.is_available(), torch.__version__, torch.version.cuda)
 ```
-This should print `(True, '<torch-version>', '<cuda-version>')` if CUDA-enabled PyTorch is present.
-
-To get suggested install commands for your active venv, run the helper:
-```cmd
-python setup_gpu.py
-```
-Add `--apply` to attempt reinstallation in your active venv:
-```cmd
-python setup_gpu.py --apply
-```
-This will print suggested pip/conda commands; if `--apply` is used it will run `pip uninstall` and `pip install` commands in the current venv.
-
-Install CUDA-enabled PyTorch on Windows (example commands)
-1) For pip-install with CUDA 11.8 (choose the CUDA matching your driver):
-```cmd
-pip install --upgrade pip
-pip install torch --index-url https://download.pytorch.org/whl/cu118
-```
-2) For conda (recommended for FAISS GPU on Windows):
-```cmd
-conda install pytorch torchvision --channel pytorch --yes
-conda install -c pytorch faiss-gpu cudatoolkit=11.8  # pick a compatible cudatoolkit
-```
-
-If you cannot install FAISS with GPU on Windows, you can still run `faiss-cpu` or continue with the TF-IDF fallback.
-
-Notes on model loading and VRAM
-- If you plan to load a language model, prefer small ones or use quantization (bitsandbytes) to reduce VRAM usage.
-- For HF `transformers`: `device_map="auto"` with `accelerate` installed helps place the model on GPU.
- - When indexing large document sets, prefer streaming chunks into your vector DB instead of collecting them all in memory. Use `iter_simple_chunk_text` from `rag.utils` to yield chunks one-by-one.
 
 License
 This project is provided as-is (no license specified).
