@@ -11,7 +11,15 @@ from typing import List
 from rag.utils import simple_chunk_text
 from rag.retriever import Retriever
 from rag.device import get_device, cuda_diagnostics
-from rag.prompting import build_prompt
+# Import build_prompt if available, otherwise provide a minimal fallback so the script runs.
+try:
+    from rag.prompting import build_prompt  # type: ignore
+except Exception:
+    def build_prompt(retrieved: List[dict], query: str) -> str:
+        # Minimal fallback prompt builder used when rag.prompting is not present.
+        context = "\n\n".join([r.get("text", "") for r in retrieved])
+        return f"Context:\n{context}\n\nQuestion: {query}\nAnswer:"
+
 from rag.generation import LocalLLM
 
 
@@ -86,7 +94,7 @@ def main():
     try:
         prompt = build_prompt(results, args.query)
     except Exception as e:
-        print("Failed to build prompt from retrieved docs:", e)
+        print("Failed to build prompt from retrieved docs (using fallback):", e)
         prompt = (
             "Context:\n"
             + "\n\n".join([r.get("text", "") for r in results])
@@ -99,7 +107,7 @@ def main():
         print("Attempting to generate an answer using LocalLLM")
 
         # Use a model path placeholder. Replace with a real model path on your machine.
-        model_path = "models/gpt2"
+        model_path = "models/your-model-here"
 
         # Instantiating LocalLLM; it tries to fallback to a small model if necessary
         try:
