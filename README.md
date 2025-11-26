@@ -73,6 +73,49 @@ FAISS index created, size: 6
 2 0.7771009206771851 doc_003_chunk_1 -> FAISS is a library for efficient similarity search and clustering of dense vectors...
 ```
 
+CLI run with `--with-llm`
+The `run_rag.py` script can also load a local LLM and generate an answer when invoked with `--with-llm` (if your environment has sufficient resources). Example output from running the CLI with a CUDA-enabled environment:
+
+```
+Query: What is RAG?
+Top docs:
+[
+  {
+    "rank": 0,
+    "score": 0.859682559967041,
+    "id": "doc_001_chunk_0",
+    "text": "Retrieval-Augmented Generation (RAG) combines a retriever with a generator to answer questions based on external documents."
+  },
+  {
+    "rank": 1,
+    "score": 0.8120253086090088,
+    "id": "doc_002_chunk_1",
+    "text": "el useful for semantic search and retrieval tasks."
+  },
+  {
+    "rank": 2,
+    "score": 0.7771009206771851,
+    "id": "doc_003_chunk_1",
+    "text": "f dense vectors, widely used for vector databases."
+  }
+]
+Attempting to generate an answer using LocalLLM
+`torch_dtype` is deprecated! Use `dtype` instead!
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+
+=== ANSWER ===
+Context:
+Retrieval-Augmented Generation (RAG) combines a retriever with a generator to answer questions based on external documents.
+
+el useful for semantic search and retrieval tasks.
+
+f dense vectors, widely used for vector databases.
+
+Question: What is RAG?
+Answer: RAG is a semantic search engine that uses a combination of a query language and a generator to generate a query.
+```
+
 Notes & recommendations
 - For production workloads with large KBs:
   - Prefer streaming chunking (iter_simple_chunk_text) to avoid large memory usage.
